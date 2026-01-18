@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的極簡 AI 筆記本</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .note-item:hover .delete-btn { opacity: 1; }
+    </style>
+</head>
+<body class="bg-gray-50 h-screen flex flex-col font-sans">
+
+    <!-- 頂部標題 -->
+    <header class="bg-white border-b p-4 flex justify-between items-center shadow-sm">
+        <h1 class="text-xl font-bold text-blue-600">MyNotes AI</h1>
+        <div id="status" class="text-xs text-green-500 font-medium">● 離線模式 (資料儲存於瀏覽器)</div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- 左側：筆記列表 -->
+        <aside class="w-64 bg-white border-r flex flex-col">
+            <button onclick="addNote()" class="m-4 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">+ 新增筆記</button>
+            <div id="noteList" class="flex-1 overflow-y-auto">
+                <!-- 筆記項目會出現在這 -->
+            </div>
+        </aside>
+
+        <!-- 右側：編輯區域 -->
+        <main class="flex-1 flex flex-col bg-white p-6">
+            <input id="noteTitle" type="text" placeholder="輸入標題..." class="text-3xl font-bold outline-none mb-4 w-full" oninput="saveNote()">
+            <textarea id="noteContent" placeholder="開始寫點什麼吧..." class="flex-1 text-lg outline-none resize-none leading-relaxed text-gray-700 w-full" oninput="saveNote()"></textarea>
+            
+            <!-- 下方 AI 工具欄 -->
+            <div class="border-t pt-4 flex gap-2">
+                <button onclick="simulateAI('summarize')" class="bg-purple-100 text-purple-700 px-4 py-1.5 rounded-full text-sm hover:bg-purple-200">✨ AI 摘要</button>
+                <button onclick="simulateAI('fix')" class="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full text-sm hover:bg-blue-200">✍️ 美化文字</button>
+                <span id="aiLoading" class="hidden text-sm text-gray-400 animate-pulse mt-1">AI 思考中...</span>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let notes = JSON.parse(localStorage.getItem('notes')) || [];
+        let activeId = null;
+
+        function addNote() {
+            const newNote = { id: Date.now(), title: '', content: '', time: new Date().toLocaleString() };
+            notes.unshift(newNote);
+            activeId = newNote.id;
+            render();
+        }
+
+        function saveNote() {
+            if (!activeId) return;
+            const note = notes.find(n => n.id === activeId);
+            note.title = document.getElementById('noteTitle').value;
+            note.content = document.getElementById('noteContent').value;
+            localStorage.setItem('notes', JSON.stringify(notes));
+            renderList();
+        }
+
+        function deleteNote(id, e) {
+            e.stopPropagation();
+            notes = notes.filter(n => n.id !== id);
+            if (activeId === id) activeId = null;
+            localStorage.setItem('notes', JSON.stringify(notes));
+            render();
+        }
+
+        function selectNote(id) {
+            activeId = id;
+            const note = notes.find(n => n.id === id);
+            document.getElementById('noteTitle').value = note.title;
+            document.getElementById('noteContent').value = note.content;
+            render();
+        }
+
+        function renderList() {
+            const list = document.getElementById('noteList');
+            list.innerHTML = notes.map(n => `
+                <div onclick="selectNote(${n.id})" class="p-4 border-b cursor-pointer hover:bg-gray-50 relative note-item ${activeId === n.id ? 'bg-blue-50 border-r-4 border-blue-500' : ''}">
+                    <div class="font-bold truncate pr-6">${n.title || '無標題'}</div>
+                    <div class="text-xs text-gray-400 mt-1">${n.time}</div>
+                    <button onclick="deleteNote(${n.id}, event)" class="delete-btn opacity-0 absolute right-2 top-4 text-gray-300 hover:text-red-500">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function render() {
+            renderList();
+            if (!activeId) {
+                document.getElementById('noteTitle').value = '';
+                document.getElementById('noteContent').value = '';
+            }
+        }
+
+        function simulateAI(action) {
+            if (!activeId) return;
+            document.getElementById('aiLoading').classList.remove('hidden');
+            setTimeout(() => {
+                const content = document.getElementById('noteContent').value;
+                let result = "";
+                if (action === 'summarize') result = "\n\n【AI 摘要】：這篇筆記主要記錄了關於 " + (content.substring(0,10)) + "... 等內容。";
+                if (action === 'fix') result = " (AI 已優化您的語法)";
+                
+                document.getElementById('noteContent').value += result;
+                saveNote();
+                document.getElementById('aiLoading').classList.add('hidden');
+            }, 1000);
+        }
+
+        render();
+    </script>
+</body>
+</html>
